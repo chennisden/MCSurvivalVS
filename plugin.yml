@@ -1,0 +1,27 @@
+name: MCSurvivalVS
+version: 1.1.0
+author: chennisden
+main: xyz.geometryexplorer.mcSurvivalVS.MCSurvivalVS
+description: Fight your friends in a survival Minecraft world. A compass exists Over time, the border will shrink and players will have the Glowing effect applied to them to make them easier to find.
+
+commands:
+   newgame:
+      aliases: [ng]
+      description: Starts a new game.
+      usage: /<command>
+   endgame:
+      aliases: [end, eg]
+      description: Ends the game.
+      usage: /<command>
+   setgametime:
+      aliases: [sgt]
+      description: Set game time. (This is not to be confused with Minecraft ingame time and is used to determine border size, glowing, etc.)
+      usage: /<command> gametime
+   setpace:
+      aliases: [sp]
+      description: Determines the pace which borders shrink and glowing is applied.
+      usage: /<command> pace
+   setdifficulty:
+      aliases: [sd]
+      description: Set the game difficulty for all future MCSurvivalVS games.
+      usage: /<command> difficulty
