@@ -25,3 +25,7 @@ commands:
       aliases: [sd]
       description: Set the game difficulty for all future MCSurvivalVS games.
       usage: /<command> difficulty
+   survivors:
+      aliases: []
+      description: Sends a list of all current survivors.
+      usage: /<command>

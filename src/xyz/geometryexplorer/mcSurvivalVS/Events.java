@@ -1,22 +1,27 @@
 package xyz.geometryexplorer.mcSurvivalVS;
 
 import java.util.HashMap;
+import java.util.Iterator;
 import java.util.List;
 import java.util.Map;
 
 import org.bukkit.Bukkit;
 import org.bukkit.ChatColor;
+import org.bukkit.GameMode;
 import org.bukkit.Location;
+import org.bukkit.Material;
 import org.bukkit.entity.Player;
 import org.bukkit.event.EventHandler;
 import org.bukkit.event.EventPriority;
 import org.bukkit.event.Listener;
 import org.bukkit.event.block.Action;
+import org.bukkit.event.entity.PlayerDeathEvent;
 import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
 import org.bukkit.inventory.ItemStack;
+import org.bukkit.inventory.meta.CompassMeta;
 import org.bukkit.inventory.meta.ItemMeta;
 import org.bukkit.scheduler.BukkitRunnable;
 
@@ -31,6 +36,8 @@ public class Events implements Listener {
 	private Map<String, Long> timeCooldowns = new HashMap<String, Long>();
 	private Map<Player, Integer> cooldowns = new HashMap<Player, Integer>();
 	
+	BukkitRunnable compassCooldownOnName;
+	
 	public void passMCVS(MCSurvivalVS mcvs) {
 		this.mcvs = mcvs;
 	}
@@ -43,6 +50,9 @@ public class Events implements Listener {
 	
 	public void resetCooldown() {
 		for (Player p : Bukkit.getOnlinePlayers()) {
+			if (compassCooldownOnName != null) {
+				compassCooldownOnName.cancel();
+			}
 			cooldowns.put(p, 0);
 			timeCooldowns.clear();
 		}
@@ -66,23 +76,28 @@ public class Events implements Listener {
 			return null;
 		}
 		
-		Location closestLocation = p.getWorld().getPlayers().get(0).getLocation();
+		Location closestLocation = null;
+		
 		for (Player player : p.getWorld().getPlayers()) {
 			if (player == p) {
 				continue;
 			}
 			
-			double oldDistance = closestLocation.distance(p.getLocation());
+			double oldDistance = 0;
+			
+			if (closestLocation != null) {
+				oldDistance = closestLocation.distance(p.getLocation());
+			}
 			double newDistance = player.getLocation().distance(p.getLocation());
 			
-			if (newDistance < oldDistance) {
+			if (closestLocation == null || newDistance < oldDistance) {
 				closestLocation = player.getLocation();
 			}
 		}
 		return closestLocation;
 	}
 	
-	public void updateCompass(Player player) {
+	public void updateCompass(Player player, ItemStack compass) {
 		
 		int playerCounter = 0;
 		
@@ -94,21 +109,33 @@ public class Events implements Listener {
 		
 		if (playerCounter > 1) {
 			// compass points to closest player
+			
+			if (player.getWorld().getName().equals("world")) {
+				player.setCompassTarget(closestPlayerLocation(player));
+				player.sendMessage(ChatColor.RED + "Compass updated");
+			} else if (player.getWorld().getName().equals("world_nether")) {
+				CompassMeta compassMeta = (CompassMeta) compass.getItemMeta();
+				compassMeta.setLodestone(closestPlayerLocation(player));
+				compassMeta.setLodestoneTracked(false);
+				compass.setItemMeta(compassMeta);
+				player.sendMessage(ChatColor.RED + "Compass updated");
+			}
 		} else {
-			player.sendMessage("There are no other survivors in this dimension.");
+			player.sendMessage(ChatColor.RED + "There are no other survivors in this dimension");
 		}
 	}
 	
 	@EventHandler(priority = EventPriority.HIGH)
 	public void onInteractionEvent(PlayerInteractEvent e) { // wow compass wow
 		
-		updateCompassInfo();
-		
 		Player player = (Player) e.getPlayer();
 		Action action = e.getAction();
 		String compassKey = player.getName() + "-compass";
 		
-		if (player.getInventory().getItemInMainHand() == null || player.getInventory().getItemInMainHand().getItemMeta().getLore() == null) {
+		if (mcvs.getSurvivors().contains(player)) {
+			if (action.equals(Action.RIGHT_CLICK_AIR) || action.equals(Action.RIGHT_CLICK_BLOCK)) {
+		
+		if (player.getInventory().getItemInMainHand().getType() == Material.AIR || player.getInventory().getItemInMainHand().getItemMeta().getLore() == null) {
 			return;
 		}
 		
@@ -116,34 +143,36 @@ public class Events implements Listener {
 		
 		List<String> itemLore = item.getItemMeta().getLore();
 		
-		if (mcvs.getSurvivors().contains(player)) {
-			if (action.equals(Action.RIGHT_CLICK_AIR) || action.equals(Action.RIGHT_CLICK_BLOCK)) {
+		
 				if (compassLore.equals(itemLore)) {
 					if (!timeCooldowns.containsKey(compassKey) || timeCooldowns.get(compassKey) < System.currentTimeMillis()) {
 						timeCooldowns.put(player.getName() + "-compass", System.currentTimeMillis() + 30000);
-						updateCompass(player);
+						updateCompass(player, item);
 						cooldowns.put(player,30);
+						compassMeta.setDisplayName(ChatColor.RED + ((Integer) cooldowns.get(player)).toString());
 						
-						new BukkitRunnable() {
+						compassCooldownOnName = new BukkitRunnable() {
 							
 							@Override
 							public void run() {
 								
-								compassMeta.setDisplayName(ChatColor.RED + ((Integer) cooldowns.get(player)).toString());
-								
-								compass.setItemMeta(compassMeta);
-								
-								player.getInventory().setItem(FindCompass(player), compass);
-																
 								cooldowns.put(player, cooldowns.get(player)-1);
 								
+								compassMeta.setDisplayName(ChatColor.RED + ((Integer) cooldowns.get(player)).toString());
+								
+								item.setItemMeta(compassMeta);
+								
 								if (cooldowns.get(player) == 0) {
+									item.setItemMeta(mcvs.getCompass().getItemMeta());
 									this.cancel();
 								}
 							}
-						}.runTaskTimer(mcvs, 0, 20);
+						};
+						
+						compassCooldownOnName.runTaskTimer(mcvs, 20, 20);
+						
 					} else {
-						player.sendMessage(ChatColor.RED + "Wait " + (timeCooldowns.get(compassKey) - System.currentTimeMillis()) / 1000 + " more seconds.");
+						player.sendMessage(ChatColor.RED + "Wait " + ((timeCooldowns.get(compassKey) - System.currentTimeMillis()) + 999)/ 1000 + " more seconds.");
 					}
 				}
 			}
@@ -163,6 +192,7 @@ public class Events implements Listener {
 	@EventHandler
 	public void onPlayerJoin(PlayerJoinEvent e) {
 		Player p = e.getPlayer();
+		p.setGameMode(GameMode.SPECTATOR);
 		mcvs.addSpectator(p);
 	}
 	
@@ -171,5 +201,29 @@ public class Events implements Listener {
 		Player p = e.getPlayer();
 		mcvs.removeSurvivor(p);
 		mcvs.removeSpectator(p);
+	}
+	
+	@EventHandler
+	public void onPlayerDeath(PlayerDeathEvent e) {
+		Player player = e.getEntity();
+
+		List<ItemStack> drops = e.getDrops();
+		Iterator<ItemStack> dropsIterator = drops.listIterator();
+		
+		while (dropsIterator.hasNext() ) {
+			ItemStack itemStack = dropsIterator.next();
+		
+			if (compassLore.equals(itemStack.getItemMeta().getLore())) {
+				dropsIterator.remove();
+			}
+		}
+			
+		mcvs.removeSurvivor(player);
+		
+		player.setGameMode(GameMode.SPECTATOR);
+		
+		if (mcvs.getSurvivors().size() <= 1) {
+			mcvs.endGame();
+		}
 	}
 }
