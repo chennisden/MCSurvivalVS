@@ -189,11 +189,16 @@ public class MCSurvivalVS extends JavaPlugin {
 //			}
 //		}
 		
-		for (Player p : survivors) {
+		for (int i = 0; i < survivors.size(); i++) {
+			Player p = survivors.get(i);
 			p.setGameMode(GameMode.SURVIVAL);
 			playerReset(p);
-			int randomX = (int) (Math.random() * 201) - 100;
-			int randomZ = (int) (Math.random() * 201) - 100;
+			
+			int mathX = (int) (100 * Math.cos(i * 2 * Math.PI / survivors.size()));
+			int mathZ = (int) (100 * Math.sin(i * 2 * Math.PI / survivors.size()));
+			
+			int randomX = mathX + (int) (Math.random() * 11) - 5;
+			int randomZ = mathZ + (int) (Math.random() * 11) - 5;
 			int Y = overworld.getHighestBlockYAt(randomX, randomZ) + 1;
 			
 			Location spawn = new Location(overworld, randomX, Y, randomZ);
