@@ -20,6 +20,7 @@ import org.bukkit.event.player.PlayerDropItemEvent;
 import org.bukkit.event.player.PlayerInteractEvent;
 import org.bukkit.event.player.PlayerJoinEvent;
 import org.bukkit.event.player.PlayerQuitEvent;
+import org.bukkit.inventory.EquipmentSlot;
 import org.bukkit.inventory.ItemStack;
 import org.bukkit.inventory.meta.CompassMeta;
 import org.bukkit.inventory.meta.ItemMeta;
@@ -125,7 +126,7 @@ public class Events implements Listener {
 		}
 	}
 	
-	@EventHandler(priority = EventPriority.HIGH)
+	@EventHandler
 	public void onInteractionEvent(PlayerInteractEvent e) { // wow compass wow
 		
 		Player player = (Player) e.getPlayer();
@@ -133,7 +134,7 @@ public class Events implements Listener {
 		String compassKey = player.getName() + "-compass";
 		
 		if (mcvs.getSurvivors().contains(player)) {
-			if (action.equals(Action.RIGHT_CLICK_AIR) || action.equals(Action.RIGHT_CLICK_BLOCK)) {
+			if (action.equals(Action.RIGHT_CLICK_AIR) || action.equals(Action.RIGHT_CLICK_BLOCK) && e.getHand() == EquipmentSlot.HAND) {
 		
 		if (player.getInventory().getItemInMainHand().getType() == Material.AIR || player.getInventory().getItemInMainHand().getItemMeta().getLore() == null) {
 			return;
